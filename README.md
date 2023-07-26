@@ -20,6 +20,23 @@ Then the script starts the downloading.
 
 Well, if you use the Python script, then change `rcdtool` by `python rcdtool` et voilà.
 
+### Where I find these IDs?
+
+In desktop: right click > copy message/post link.
+In mobile: touch the message > copy link
+
+This link will have this format:
+```
+https://t.me/c/<channel ID>/<message ID>
+```
+
+> Remember that this tool is for private channel for now. I was lazy to add support to public channels xD.
+
+Then, extract the IDs from the link. Or you can pass that link to the tool with `--link` as follows:
+```bash
+./rcdtool --link https://t.me/c/106942033f/123 -O stuff.png
+```
+
 ## Dist
 
 In this repository we release the source code (Python) and a binary option for GNU/Linux. You can build a binary for any other operating system using tool as [PyInstaller](https://pyinstaller.org/en/).
