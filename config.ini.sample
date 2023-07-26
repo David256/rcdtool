@@ -1,0 +1,12 @@
+; This data for the client to access
+[Access]
+session = tg
+id = [your API ID here]
+hash = [your API hash here]
+
+; Client settings
+[Client]
+timeout = 7000
+device_model = scriptgram
+lang_code = es-ES
+
