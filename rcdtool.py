@@ -25,7 +25,7 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import Optional, Union, cast
 import argparse
 import sys
 import readline
@@ -126,7 +126,7 @@ def create_client(config: configparser.ConfigParser):
     return client
 
 async def process(client: TelegramClient,
-                  channel_id: int,
+                  channel_id: Union[int, str],
                   message_id: int,
                   output_filename: str,
                   ):
@@ -187,9 +187,13 @@ def main():
         channel_id, message_id = message_link.split('/')[-2:]
 
     # Check if the channel_id is valid
-    channel_id_int = int(channel_id)
-    if channel_id_int > 0:
-        channel_id = f'-100{channel_id}'
+    updated_channel_id: Union[int, str] = channel_id
+    try:
+        updated_channel_id = int(channel_id)
+        if updated_channel_id > 0:
+            updated_channel_id = int(f'-100{updated_channel_id}')
+    except ValueError as err:
+        print('channel id from string because', err)
 
     # Get the output filename
     if args.output_filename is None:
@@ -200,7 +204,7 @@ def main():
     client = create_client(config)
 
     coro = process(client=client,
-                   channel_id=int(channel_id),
+                   channel_id=channel_id,
                    message_id=int(message_id),
                    output_filename=output_filename,
                    )
