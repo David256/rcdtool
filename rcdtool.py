@@ -204,7 +204,7 @@ def main():
     client = create_client(config)
 
     coro = process(client=client,
-                   channel_id=channel_id,
+                   channel_id=updated_channel_id,
                    message_id=int(message_id),
                    output_filename=output_filename,
                    )
