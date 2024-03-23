@@ -30,8 +30,6 @@ This link will have this format:
 https://t.me/c/<channel ID>/<message ID>
 ```
 
-> Remember that this tool is for private channel for now. I was lazy to add support to public channels xD.
-
 Then, extract the IDs from the link. Or you can pass that link to the tool with `--link` as follows:
 ```bash
 ./rcdtool --link https://t.me/c/106942033f/123 -O stuff.png

@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import Optional, Union, cast
 import argparse
 import sys
+# pylint: disable=unused-import
 import readline
 from random import randrange
 
@@ -38,6 +39,7 @@ from telethon.types import InputChannel
 
 @dataclass
 class Arguments:
+    """Arguments."""
     config_filename: str
     channel_id: Optional[str]
     message_id: Optional[str]
@@ -160,21 +162,18 @@ async def process(client: TelegramClient,
 
 def main():
     """
-    curl affinity favour settlement weak stride industry censorship democratic
-    forbid role listen sense defendant patience withdraw challenge article AIDS
-    herb riot contrary overview friendly worker conceive stream favorable
-    second squash experiment session symbol contemporary counter temptation beef
+    The main method.
     """
     args = get_args()
     config = get_config(args.config_filename)
-    
+
     if args.link is None:
         # Take the channel ID or ask for this
         if args.channel_id is None:
             channel_id = input('Channel ID: ')
         else:
             channel_id = args.channel_id
-        
+
         # Take the message ID or ask for this
         if args.message_id is None:
             message_id = input('Message ID: ')
@@ -214,6 +213,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    # pylint: disable=broad-exception-caught
     except Exception as e:
         print(e, file=sys.stderr, flush=True)
         sys.exit(-1)
