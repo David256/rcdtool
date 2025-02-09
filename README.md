@@ -57,3 +57,33 @@ Then rename `config.ini.sample` to `config.ini`, edit it and save wherever you w
 The first time, **rcdtool** will ask you for your phone number, and will start a login process. When this is done, a `.session` file will be created. With this `.session` file, the tool could access to your Telegram account to read messages and download medias. The name of the .session file is set in `config.ini`.
 
 This tool answers to the question of how to bypass content forwarding/download restriction on telegram channels suck as restricted videos.
+
+### Advanced usage
+
+You can define multiple message IDs separated by commas and define a range of message IDs using '..'.
+
+```bash
+# message id 34
+rcdtool -c config.ini -C qwert -M 34
+
+# message id 34 and 50
+rcdtool -c config.ini -C qwert -M 34,50 -O download/photo
+
+# message id range from 34 to 60
+rcdtool -c config.ini -C -100200200 -M 34..60
+
+# two message id and a message id range
+rcdtool -c config.ini -C 200200 -M 13,15,20..30
+
+# passing a simple link
+rcdtool -c config.ini --link https://t.me/c/200200/503
+
+# passing a link where the <message id> section define multiple message ids
+rcdtool -c config.ini --link https://t.me/c/200200/13,15,20..30
+```
+
+You can request that the script infer the file extension.
+
+```bash
+rcdtool -c config.ini -C qwert -M 34 -O download/base --infer-extension
+```
