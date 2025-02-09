@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 from typing import Union
+import re
 
 def parse_channel_id(channel_id: Union[str, int]):
     """Parse the channel id.
@@ -62,3 +63,14 @@ def parse_message_id(message_id: Union[str, int]):
         message_id = int(message_id)
     return message_id
 
+
+def parse_ranges(input_string: str):
+    regex = re.compile(r'(\d+)(?:\.{2}(\d+))?')
+    ranges: list[tuple[str, str]] = []
+    for part in input_string.split(','):
+        _match = regex.fullmatch(part.strip())
+        if _match:
+            start = parse_message_id(_match.group(1))
+            end = parse_message_id(_match.group(2)) if _match.group(2) else start
+            ranges.append((start, end))
+    return ranges
