@@ -35,7 +35,7 @@ from random import randrange
 import configparser
 from telethon import TelegramClient
 from telethon.functions import channels
-from telethon.types import InputChannel
+from telethon.types import InputChannel, MessageMediaPaidMedia
 
 @dataclass
 class Arguments:
@@ -156,7 +156,12 @@ async def process(client: TelegramClient,
     print('downloading...')
 
     with open(output_filename, 'wb+') as file:
-        await client.download_file(message.media, file)
+        if isinstance(message.media, MessageMediaPaidMedia):
+            print('paid message found')
+            for message_extended_media in message.media.extended_media:
+                await client.download_file(message_extended_media.media, file)
+        else:
+            await client.download_file(message.media, file)
         print(f'downloaded to {output_filename}')
 
 
