@@ -66,7 +66,7 @@ def get_args():
                         dest='link',
                         const="",
                         default=None,
-                        help='Take IDs from a message link')
+                        help='Take IDs from a message link. The message id section of the link can be in the same format as described for -M below')
     parser.add_argument('-c',
                         '--config',
                         nargs='?',
@@ -82,7 +82,7 @@ def get_args():
                         '--message-id',
                         nargs='?',
                         dest='message_id',
-                        help='The message ID')
+                        help='The message ID. This value can be a comma-separated list, or a range of values ​​separated by ".."')
     parser.add_argument('-O',
                         '--output',
                         nargs='?',
