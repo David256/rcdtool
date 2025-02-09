@@ -147,7 +147,7 @@ async def process(client: TelegramClient,
 
 
     messages_request = channels.GetMessagesRequest(input_channel, [message_id])
-    channel_messages: messages.ChannelMessages = await client(messages_request)
+    channel_messages: messages.Messages = await client(messages_request)
     messages = channel_messages.messages
 
     message = messages[0]
