@@ -24,9 +24,10 @@
 
 
 import os
-from typing import Union
+from typing import Union, Optional
 
 import configparser
+import filetype
 from telethon import TelegramClient
 from telethon.functions import channels
 from telethon.types import InputChannel, MessageMediaPaidMedia
@@ -79,6 +80,7 @@ class RCD:
                       channel_id: Union[int, str],
                       message_id: int,
                       output_filename: str,
+                      infer_extension: Optional[bool] = None
                       ):
         """Read a message in a channel and download the media to output.
 
@@ -109,3 +111,13 @@ class RCD:
             else:
                 await self.client.download_file(message.media, file)
             logger.info('downloaded to %s', output_filename)
+
+            if infer_extension:
+                result = filetype.guess(output_filename)
+                if result:
+                    ext = result.extension
+                    new_output_filename = f'{output_filename}.{ext}'
+                    os.rename(output_filename, new_output_filename)
+                    logger.debug('rename to %s', new_output_filename)
+                    return new_output_filename
+            return output_filename
