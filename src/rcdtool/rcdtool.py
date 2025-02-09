@@ -25,85 +25,87 @@
 
 import os
 from typing import Union
-# pylint: disable=unused-import
-import readline
 
 import configparser
 from telethon import TelegramClient
 from telethon.functions import channels
 from telethon.types import InputChannel, MessageMediaPaidMedia
 
+from rcdtool.log import logger
 
 
-def get_config(config_filename: str):
-    """Create a config object from config file.
+class RCD:
+    def __init__(self, config_filename: str):
+        self.config_filename = config_filename
+        self.config = self.get_config(self.config_filename)
+        self.client = self.create_client()
 
-    Args:
-        config_filename (str): The config filename.
+    def get_config(self, config_filename: str):
+        """Create a config object from config file.
 
-    Returns:
-        ConfigParser: a new ConfigParser object.
-    """
-    if not os.path.exists(config_filename):
-        raise FileNotFoundError(f'Not found: {config_filename}')
-    config = configparser.ConfigParser()
-    config.read(config_filename)
-    return config
+        Args:
+            config_filename (str): The config filename.
+
+        Returns:
+            ConfigParser: a new ConfigParser object.
+        """
+        if not os.path.exists(config_filename):
+            raise FileNotFoundError(f'Not found: {config_filename}')
+        config = configparser.ConfigParser()
+        config.read(config_filename)
+        return config
+
+    def create_client(self):
+        """Create a Telegram client object from given config.
+
+        Args:
+            config (configparser.ConfigParser): Parsed config object.
+
+        Returns:
+            TelegramClient: The Telegram client object.
+        """
+        client = TelegramClient(
+            session=self.config['Access']['session'],
+            api_id=self.config['Access']['id'],
+            api_hash=self.config['Access']['hash'],
+            timeout=int(self.config['Client']['timeout']),
+            device_model=self.config['Client']['device_model'],
+            lang_code=self.config['Client']['lang_code'],
+        )
+        client.start()
+        return client
+
+    async def download_media(self,
+                      channel_id: Union[int, str],
+                      message_id: int,
+                      output_filename: str,
+                      ):
+        """Read a message in a channel and download the media to output.
+
+        Args:
+            client (TelegramClient): The Telegram client object.
+            channel_id (int): The channel ID.
+            message_id (int): The message ID.
+            output_filename (str): The output filename.
+        """
+        entity = await self.client.get_entity(channel_id)
+
+        input_channel = InputChannel(entity.id, entity.access_hash)
 
 
-def create_client(config: configparser.ConfigParser):
-    """Create a Telegram client object from given config.
+        messages_request = channels.GetMessagesRequest(input_channel, [message_id])
+        channel_messages: messages.Messages = await self.client(messages_request)
+        messages = channel_messages.messages
 
-    Args:
-        config (configparser.ConfigParser): Parsed config object.
+        message = messages[0]
 
-    Returns:
-        TelegramClient: The Telegram client object.
-    """
-    client = TelegramClient(
-        session=config['Access']['session'],
-        api_id=config['Access']['id'],
-        api_hash=config['Access']['hash'],
-        timeout=int(config['Client']['timeout']),
-        device_model=config['Client']['device_model'],
-        lang_code=config['Client']['lang_code'],
-    )
-    client.start()
-    return client
+        logger.info('downloading...')
 
-async def process(client: TelegramClient,
-                  channel_id: Union[int, str],
-                  message_id: int,
-                  output_filename: str,
-                  ):
-    """Read a message in a channel and download the media to output.
-
-    Args:
-        client (TelegramClient): The Telegram client object.
-        channel_id (int): The channel ID.
-        message_id (int): The message ID.
-        output_filename (str): The output filename.
-    """
-    entity = await client.get_entity(channel_id)
-    # print(entity)
-
-    input_channel = InputChannel(entity.id, entity.access_hash)
-
-
-    messages_request = channels.GetMessagesRequest(input_channel, [message_id])
-    channel_messages: messages.Messages = await client(messages_request)
-    messages = channel_messages.messages
-
-    message = messages[0]
-    # print(message)
-
-    print('downloading...')
-
-    with open(output_filename, 'wb+') as file:
-        if isinstance(message.media, MessageMediaPaidMedia):
-            print('paid message found')
-            for message_extended_media in message.media.extended_media:
-                await client.download_file(message_extended_media.media, file)
-        else:
-            await client.download_file(message.media, file)
-        print(f'downloaded to {output_filename}')
+        with open(output_filename, 'wb+') as file:
+            if isinstance(message.media, MessageMediaPaidMedia):
+                logger.debug('paid message found')
+                for message_extended_media in message.media.extended_media:
+                    await self.client.download_file(message_extended_media.media, file)
+            else:
+                await self.client.download_file(message.media, file)
+            logger.info('downloaded to %s', output_filename)

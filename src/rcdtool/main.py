@@ -22,13 +22,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import sys
+# pylint: disable=unused-import
+import readline
 from dataclasses import dataclass
-from typing import Optional, Union, cast
+from typing import Optional, cast
 import argparse
-from random import randrange
 
-from rcdtool.rcdtool import get_config, create_client, process
+from rcdtool.rcdtool import RCD
+
+import rcdtool.utils as utils
 
 
 @dataclass
@@ -90,7 +92,8 @@ def main():
     The main method.
     """
     args = get_args()
-    config = get_config(args.config_filename)
+
+    rcd_tool = RCD(args.config_filename)
 
     if args.link is None:
         # Take the channel ID or ask for this
@@ -111,25 +114,18 @@ def main():
         channel_id, message_id = message_link.split('/')[-2:]
 
     # Check if the channel_id is valid
-    updated_channel_id: Union[int, str] = channel_id
-    try:
-        updated_channel_id = int(channel_id)
-        if updated_channel_id > 0:
-            updated_channel_id = int(f'-100{updated_channel_id}')
-    except ValueError as err:
-        print('channel id from string because', err)
+    updated_channel_id = utils.parse_channel_id(channel_id)
+    updated_message_id = utils.parse_message_id(message_id)
 
     # Get the output filename
     if args.output_filename is None:
-        output_filename = f'file-{randrange(00000, 99999)}'
+        output_filename = f'file-{channel_id}-{message_id}'
     else:
         output_filename = args.output_filename
 
-    client = create_client(config)
-
-    coro = process(client=client,
-                   channel_id=updated_channel_id,
-                   message_id=int(message_id),
-                   output_filename=output_filename,
-                   )
-    client.loop.run_until_complete(coro)
+    coro = rcd_tool.download_media(
+        channel_id=updated_channel_id,
+        message_id=updated_message_id,
+        output_filename=output_filename,
+    )
+    rcd_tool.client.loop.run_until_complete(coro)

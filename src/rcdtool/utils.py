@@ -44,7 +44,6 @@ def parse_channel_id(channel_id: Union[str, int]):
 
     # for channel, the ID are negatives
     if isinstance(channel_id, int) and channel_id > 0:
-        print('[parse]', 'it is positive number')
         channel_id = int(f'-100{channel_id}')
     # return that
     return channel_id
