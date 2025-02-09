@@ -114,26 +114,35 @@ def main():
     if args.link is None:
         channel_id = args.channel_id or input('Channel ID: ')
 
-        message_id_list = (
-            args.message_id.split(',')
-            if args.message_id
-            else [input('Message ID: ')]
-        )
+        message_id_input = args.message_id or input('Message ID: ')
+        range_message_id = utils.parse_ranges(message_id_input)
 
-        raw_targets.extend(
-            (channel_id, message_id.strip())
-            for message_id in message_id_list
-        )
+        for (start, end) in range_message_id:
+            logger.debug('range(%s, %s)', start, end)
+            for current_message_id in range(start, end + 1):
+                raw_targets.append((channel_id, current_message_id))
+        logger.debug('target: %s', raw_targets)
     else:
         links: list[str] = []
 
         links = (
             [input('Message link: ')]
             if not args.link
-            else [link.strip() for link in args.link.split(',')]
+            else [link.strip() for link in args.link.split(';')]
         )
+        
+        for link in links:
+            logger.debug('current link: %s', link)
+            channel_id, message_id = link.split('/')[-2:]
+            logger.debug('current message_id options: %s', message_id)
+            message_id_list: list[str] = []
+            range_message_id = utils.parse_ranges(message_id)
 
-        raw_targets.extend(link.split('/')[-2:] for link in links)
+            for (start, end) in range_message_id:
+                logger.debug('range(%s, %s)', start, end)
+                for current_message_id in range(start, end + 1):
+                    raw_targets.append((channel_id, current_message_id))
+            logger.debug('target: %s', raw_targets)
 
     output_filename: Optional[str] = args.output_filename
 
