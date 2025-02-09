@@ -24,13 +24,15 @@
 
 # pylint: disable=unused-import
 import readline
+import asyncio
 from dataclasses import dataclass
-from typing import Optional, cast
+from typing import Optional, Coroutine, cast
 import argparse
 
 from rcdtool.rcdtool import RCD
 
 import rcdtool.utils as utils
+from rcdtool.log import logger
 
 
 @dataclass
@@ -41,6 +43,7 @@ class Arguments:
     message_id: Optional[str]
     output_filename: Optional[str]
     link: Optional[str]
+    infer_extension: Optional[bool]
 
 
 def get_args():
@@ -84,6 +87,11 @@ def get_args():
                         nargs='?',
                         dest='output_filename',
                         help='The output filename')
+    parser.add_argument('--infer-extension',
+                        dest='infer_extension',
+                        action='store_true',
+                        default=False,
+                        help='Infer extension and rename the output file')
     return cast(Arguments, parser.parse_args())
 
 
@@ -95,37 +103,61 @@ def main():
 
     rcd_tool = RCD(args.config_filename)
 
+    raw_targets: list[tuple[str, str]] = []
+
     if args.link is None:
-        # Take the channel ID or ask for this
-        if args.channel_id is None:
-            channel_id = input('Channel ID: ')
-        else:
-            channel_id = args.channel_id
+        channel_id = args.channel_id or input('Channel ID: ')
 
-        # Take the message ID or ask for this
-        if args.message_id is None:
-            message_id = input('Message ID: ')
-        else:
-            message_id = args.message_id
+        message_id_list = (
+            args.message_id.split(',')
+            if args.message_id
+            else [input('Message ID: ')]
+        )
+
+        raw_targets.extend(
+            (channel_id, message_id.strip())
+            for message_id in message_id_list
+        )
     else:
-        message_link = args.link
-        if message_link == "":
-            message_link = input('Message link: ')
-        channel_id, message_id = message_link.split('/')[-2:]
+        links: list[str] = []
 
-    # Check if the channel_id is valid
-    updated_channel_id = utils.parse_channel_id(channel_id)
-    updated_message_id = utils.parse_message_id(message_id)
+        links = (
+            [input('Message link: ')]
+            if not args.link
+            else [link.strip() for link in args.link.split(',')]
+        )
 
-    # Get the output filename
-    if args.output_filename is None:
-        output_filename = f'file-{channel_id}-{message_id}'
-    else:
-        output_filename = args.output_filename
+        raw_targets.extend(link.split('/')[-2:] for link in links)
 
-    coro = rcd_tool.download_media(
-        channel_id=updated_channel_id,
-        message_id=updated_message_id,
-        output_filename=output_filename,
-    )
-    rcd_tool.client.loop.run_until_complete(coro)
+    output_filename: Optional[str] = args.output_filename
+
+    coros: list[Coroutine[None, None, str]] = []
+
+    for channel_id, message_id in raw_targets:
+        updated_channel_id = utils.parse_channel_id(channel_id)
+        updated_message_id = utils.parse_message_id(message_id)
+        logger.debug('downloading from %s:%s', channel_id,message_id)
+
+        # Get the output filename
+        if output_filename is None:
+            output_filename = 'file'
+        final_output_filename = f'{output_filename}-{channel_id}-{message_id}'
+        logger.debug('output filename: %s', final_output_filename)
+
+        coro = rcd_tool.download_media(
+            channel_id=updated_channel_id,
+            message_id=updated_message_id,
+            output_filename=final_output_filename,
+            infer_extension=args.infer_extension,
+        )
+        coros.append(coro)
+
+    tasks = [
+        asyncio.ensure_future(coro)
+        for coro in coros
+    ]
+    logger.debug('%d tasks', len(tasks))
+    files = rcd_tool.client.loop.run_until_complete(asyncio.gather(*tasks))
+    logger.debug('files: %s', files)
+    for file in files:
+        print(file)
