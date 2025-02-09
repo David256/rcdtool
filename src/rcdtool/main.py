@@ -44,6 +44,7 @@ class Arguments:
     output_filename: Optional[str]
     link: Optional[str]
     infer_extension: Optional[bool]
+    dry_mode: Optional[bool]
 
 
 def get_args():
@@ -92,6 +93,11 @@ def get_args():
                         action='store_true',
                         default=False,
                         help='Infer extension and rename the output file')
+    parser.add_argument('--dry-mode',
+                        dest='dry_mode',
+                        action='store_true',
+                        default=False,
+                        help='Active the dry mode')
     return cast(Arguments, parser.parse_args())
 
 
@@ -101,7 +107,7 @@ def main():
     """
     args = get_args()
 
-    rcd_tool = RCD(args.config_filename)
+    rcd_tool = RCD(args.config_filename, dry_mode=args.dry_mode)
 
     raw_targets: list[tuple[str, str]] = []
 

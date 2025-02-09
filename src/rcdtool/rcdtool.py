@@ -36,10 +36,11 @@ from rcdtool.log import logger
 
 
 class RCD:
-    def __init__(self, config_filename: str):
+    def __init__(self, config_filename: str, dry_mode: Optional[bool] = None):
         self.config_filename = config_filename
         self.config = self.get_config(self.config_filename)
         self.client = self.create_client()
+        self.dry_mode = dry_mode
 
     def get_config(self, config_filename: str):
         """Create a config object from config file.
@@ -90,6 +91,10 @@ class RCD:
             message_id (int): The message ID.
             output_filename (str): The output filename.
         """
+        if self.dry_mode:
+            logger.info('dry running')
+            return output_filename
+
         entity = await self.client.get_entity(channel_id)
 
         input_channel = InputChannel(entity.id, entity.access_hash)
