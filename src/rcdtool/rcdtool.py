@@ -95,34 +95,42 @@ class RCD:
             logger.info('dry running')
             return output_filename
 
-        entity = await self.client.get_entity(channel_id)
+        try:
+            entity = await self.client.get_entity(channel_id)
 
-        input_channel = InputChannel(entity.id, entity.access_hash)
+            input_channel = InputChannel(entity.id, entity.access_hash)
 
 
-        messages_request = channels.GetMessagesRequest(input_channel, [message_id])
-        channel_messages: messages.Messages = await self.client(messages_request)
-        messages = channel_messages.messages
+            messages_request = channels.GetMessagesRequest(input_channel, [message_id])
+            channel_messages: messages.Messages = await self.client(messages_request)
+            messages = channel_messages.messages
 
-        message = messages[0]
+            message = messages[0]
 
-        logger.info('downloading...')
+            logger.info('downloading...')
 
-        with open(output_filename, 'wb+') as file:
-            if isinstance(message.media, MessageMediaPaidMedia):
-                logger.debug('paid message found')
-                for message_extended_media in message.media.extended_media:
-                    await self.client.download_file(message_extended_media.media, file)
-            else:
-                await self.client.download_file(message.media, file)
-            logger.info('downloaded to %s', output_filename)
+            with open(output_filename, 'wb+') as file:
+                if isinstance(message.media, MessageMediaPaidMedia):
+                    logger.debug('paid message found')
+                    for message_extended_media in message.media.extended_media:
+                        await self.client.download_file(message_extended_media.media, file)
+                else:
+                    await self.client.download_file(message.media, file)
+                logger.info('downloaded to %s', output_filename)
 
-            if infer_extension:
-                result = filetype.guess(output_filename)
-                if result:
-                    ext = result.extension
-                    new_output_filename = f'{output_filename}.{ext}'
-                    os.rename(output_filename, new_output_filename)
-                    logger.debug('rename to %s', new_output_filename)
-                    return new_output_filename
-            return output_filename
+                if infer_extension:
+                    result = filetype.guess(output_filename)
+                    if result:
+                        ext = result.extension
+                        new_output_filename = f'{output_filename}.{ext}'
+                        os.rename(output_filename, new_output_filename)
+                        logger.debug('rename to %s', new_output_filename)
+                        return new_output_filename
+                return output_filename
+        except Exception as err:
+            logger.error('Error: channel_id=%s, message_id=%s, output_filename=%s, infer_extension=%s',
+                         channel_id,
+                         message_id,
+                         output_filename,
+                         infer_extension)
+            logger.error(err)

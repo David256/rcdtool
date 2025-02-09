@@ -146,7 +146,7 @@ def main():
 
     output_filename: Optional[str] = args.output_filename
 
-    coros: list[Coroutine[None, None, str]] = []
+    coros: list[Coroutine[None, None, Optional[str]]] = []
 
     for channel_id, message_id in raw_targets:
         updated_channel_id = utils.parse_channel_id(channel_id)
@@ -175,4 +175,5 @@ def main():
     files = rcd_tool.client.loop.run_until_complete(asyncio.gather(*tasks))
     logger.debug('files: %s', files)
     for file in files:
-        print(file)
+        if file:
+            print(file)
