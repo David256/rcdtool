@@ -87,3 +87,7 @@ You can request that the script infer the file extension.
 ```bash
 rcdtool -c config.ini -C qwert -M 34 -O download/base --infer-extension
 ```
+
+---
+
+If you want to find a media in a comment on a channel post, use `--discussion-message-id` to set the message id of the comment.
