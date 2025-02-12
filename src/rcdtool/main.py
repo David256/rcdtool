@@ -83,7 +83,7 @@ def get_args():
                         '--message-id',
                         nargs='?',
                         dest='message_id',
-                        help='The message ID. This value can be a comma-separated list, or a range of values ​​separated by ".."')
+                        help='The message ID. This value can be a comma-separated list, or a range of values separated by ".."')
     parser.add_argument('-DM',
                         '--discussion-message-id',
                         nargs='?',
