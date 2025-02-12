@@ -93,7 +93,7 @@ def get_args():
                         action='store_true',
                         default=False,
                         help='Infer extension and rename the output file')
-    parser.add_argument('--dry-mode',
+    parser.add_argument('--dry-run',
                         dest='dry_mode',
                         action='store_true',
                         default=False,
