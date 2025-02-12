@@ -24,12 +24,14 @@
 
 
 import os
-from typing import Union, Optional
+from typing import cast, Union, Optional
 
 import configparser
 import filetype
 from telethon import TelegramClient
+import telethon.functions as functions
 from telethon.functions import channels
+import telethon.types as tg_types
 from telethon.types import InputChannel, MessageMediaPaidMedia
 
 from rcdtool.log import logger
@@ -81,7 +83,8 @@ class RCD:
                       channel_id: Union[int, str],
                       message_id: int,
                       output_filename: str,
-                      infer_extension: Optional[bool] = None
+                      infer_extension: Optional[bool] = None,
+                      discussion_message_id: Optional[Union[int, str]] = None,
                       ):
         """Read a message in a channel and download the media to output.
 
@@ -93,21 +96,45 @@ class RCD:
         """
         if self.dry_mode:
             logger.info('dry running')
-            return output_filename
 
         try:
             entity = await self.client.get_entity(channel_id)
 
             input_channel = InputChannel(entity.id, entity.access_hash)
 
-
             messages_request = channels.GetMessagesRequest(input_channel, [message_id])
-            channel_messages: messages.Messages = await self.client(messages_request)
-            messages = channel_messages.messages
-
-            message = messages[0]
+            channel_messages: tg_types.messages.Messages = await self.client(messages_request)
+            message = channel_messages.messages[0]
 
             logger.info('downloading...')
+
+            if discussion_message_id:
+                logger.info('finding message from a discussion group')
+                if message.replies and message.replies.comments:
+                    request = functions.messages.GetDiscussionMessageRequest(
+                        peer=message.peer_id,
+                        msg_id=message.id,
+                    )
+                    result = await self.client(request)
+                    result = cast(tg_types.messages.DiscussionMessage, result)
+
+                    discussion_messages = result.messages
+                    discussion_message = discussion_messages[0]
+                    entity = await self.client.get_entity(
+                        discussion_message.peer_id,
+                    )
+
+                    input_channel = InputChannel(entity.id, entity.access_hash)
+                    messages_request = channels.GetMessagesRequest(input_channel, [discussion_message_id])
+                    channel_messages: tg_types.messages.Messages = await self.client(messages_request)
+                    # overwrite the object message
+                    message = channel_messages.messages[0]
+                else:
+                    logger.error('message with no comments')
+                    return
+
+            if self.dry_mode:
+                return output_filename
 
             with open(output_filename, 'wb+') as file:
                 if isinstance(message.media, MessageMediaPaidMedia):

@@ -45,6 +45,7 @@ class Arguments:
     link: Optional[str]
     infer_extension: Optional[bool]
     dry_mode: Optional[bool]
+    discussion_message_id: Optional[str]
 
 
 def get_args():
@@ -83,6 +84,11 @@ def get_args():
                         nargs='?',
                         dest='message_id',
                         help='The message ID. This value can be a comma-separated list, or a range of values ​​separated by ".."')
+    parser.add_argument('-DM',
+                        '--discussion-message-id',
+                        nargs='?',
+                        dest='discussion_message_id',
+                        help='The discussion message ID. If you want to find a message in a discussion channel from a post in a channel. Do not use this with multiple target of channels lol')
     parser.add_argument('-O',
                         '--output',
                         nargs='?',
@@ -164,6 +170,7 @@ def main():
             message_id=updated_message_id,
             output_filename=final_output_filename,
             infer_extension=args.infer_extension,
+            discussion_message_id=utils.parse_message_id(args.discussion_message_id),
         )
         coros.append(coro)
 
