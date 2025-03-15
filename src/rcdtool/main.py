@@ -24,6 +24,8 @@
 
 # pylint: disable=unused-import
 import readline
+import os
+import random
 import asyncio
 from dataclasses import dataclass
 from typing import Optional, Coroutine, cast
@@ -44,6 +46,7 @@ class Arguments:
     output_filename: Optional[str]
     link: Optional[str]
     infer_extension: Optional[bool]
+    detailed_name: Optional[bool]
     dry_mode: Optional[bool]
     discussion_message_id: Optional[str]
 
@@ -99,12 +102,48 @@ def get_args():
                         action='store_true',
                         default=False,
                         help='Infer extension and rename the output file')
+    parser.add_argument('--detailed-name',
+                        dest='detailed_name',
+                        action='store_true',
+                        default=False,
+                        help='Rename the file with the channel and message ids')
     parser.add_argument('--dry-run',
                         dest='dry_mode',
                         action='store_true',
                         default=False,
                         help='Active the dry mode')
     return cast(Arguments, parser.parse_args())
+
+
+def generate_unique_filename(
+        filepath: str,
+        is_detailed: bool,
+        detail: Optional[str]
+        ) -> str:
+    """Generate a new filename based the config. If the filename exists, add a new counter in the name.
+
+    Args:
+        filepath (str): The file path.
+        is_detailed (bool): Active the detailed filename.
+        detail (Optional[str]): The extra data. If it is None, a random number will be used.
+
+    Returns:
+        str: The new filename.
+    """
+    directory, filename = os.path.split(filepath)
+    name, ext = os.path.splitext(filename)
+
+    if is_detailed:
+        name += f'-{detail or random.randint(1000, 9999)}'
+
+    new_filepath = os.path.join(directory, name + ext)
+    counter = 1
+
+    while os.path.exists(new_filepath):
+        new_filepath = os.path.join(directory, f"{name}-{counter}{ext}")
+        counter += 1
+
+    return new_filepath
 
 
 def main():
@@ -162,7 +201,11 @@ def main():
         # Get the output filename
         if output_filename is None:
             output_filename = 'file'
-        final_output_filename = f'{output_filename}-{channel_id}-{message_id}'
+        final_output_filename = generate_unique_filename(
+            output_filename,
+            args.detailed_name,
+            f'-{channel_id}-{message_id}',
+        )
         logger.debug('output filename: %s', final_output_filename)
 
         coro = rcd_tool.download_media(
