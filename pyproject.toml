@@ -1,9 +1,11 @@
 [project]
 name = "rcdtool"
 authors = [{ name = "David Waster", email = "wasterdavid@gmail.com" }]
-version = "2.1.0"
+version = "2.1.1"
 requires-python = ">=3.9"
 dependencies = ["Telethon", "filetype", "colored"]
+description = "Script that downloads telegram restricted content."
+readme = "README.md"
 
 [project.optional-dependencies]
 dev = ["pytest"]
