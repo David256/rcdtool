@@ -154,10 +154,13 @@ def main():
 
     rcd_tool = RCD(args.config_filename, dry_mode=args.dry_mode)
 
-    raw_targets: list[tuple[str, str]] = []
+    raw_targets: list[tuple[int|str, int]] = []
 
     if args.link is None:
         channel_id = args.channel_id or input('Channel ID: ')
+        if not channel_id.isdigit():
+            logger.warning('channel id is not a digit: %s', channel_id)
+        channel_id_number = int(channel_id)
 
         message_id_input = args.message_id or input('Message ID: ')
         range_message_id = utils.parse_ranges(message_id_input)
@@ -165,7 +168,7 @@ def main():
         for (start, end) in range_message_id:
             logger.debug('range(%s, %s)', start, end)
             for current_message_id in range(start, end + 1):
-                raw_targets.append((channel_id, current_message_id))
+                raw_targets.append((channel_id_number, current_message_id))
         logger.debug('target: %s', raw_targets)
     else:
         links: list[str] = []
@@ -203,7 +206,7 @@ def main():
             output_filename = 'file'
         final_output_filename = generate_unique_filename(
             output_filename,
-            args.detailed_name,
+            bool(args.detailed_name),
             f'-{channel_id}-{message_id}',
         )
         logger.debug('output filename: %s', final_output_filename)
@@ -213,7 +216,7 @@ def main():
             message_id=updated_message_id,
             output_filename=final_output_filename,
             infer_extension=args.infer_extension,
-            discussion_message_id=utils.parse_message_id(args.discussion_message_id),
+            discussion_message_id=utils.parse_message_id(args.discussion_message_id) if args.discussion_message_id is not None else None,
         )
         coros.append(coro)
 
