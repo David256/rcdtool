@@ -118,7 +118,8 @@ def get_args():
 def generate_unique_filename(
         filepath: str,
         is_detailed: bool,
-        detail: Optional[str]
+        detail: Optional[str],
+        exclude_names: Optional[list[str]] = None
         ) -> str:
     """Generate a new filename based the config. If the filename exists, add a new counter in the name.
 
@@ -139,7 +140,7 @@ def generate_unique_filename(
     new_filepath = os.path.join(directory, name + ext)
     counter = 1
 
-    while os.path.exists(new_filepath):
+    while os.path.exists(new_filepath) or new_filepath in (exclude_names or []):
         new_filepath = os.path.join(directory, f"{name}-{counter}{ext}")
         counter += 1
 
@@ -195,6 +196,7 @@ def main():
 
     coros: list[Coroutine[None, None, Optional[str]]] = []
 
+    exclude_names: list[str] = []
     for channel_id, message_id in raw_targets:
         updated_channel_id = utils.parse_channel_id(channel_id)
         updated_message_id = utils.parse_message_id(message_id)
@@ -207,8 +209,10 @@ def main():
             output_filename,
             bool(args.detailed_name),
             f'-{channel_id}-{message_id}',
+            exclude_names,
         )
         logger.debug('output filename: %s', final_output_filename)
+        exclude_names.append(final_output_filename)
 
         coro = rcd_tool.download_media(
             channel_id=updated_channel_id,
