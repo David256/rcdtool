@@ -32,7 +32,6 @@ from telethon import TelegramClient
 import telethon.functions as functions
 from telethon.functions import channels
 import telethon.types as tg_types
-from telethon.types import InputChannel, MessageMediaPaidMedia
 
 from rcdtool.log import logger
 
@@ -70,7 +69,7 @@ class RCD:
         """
         client = TelegramClient(
             session=self.config['Access']['session'],
-            api_id=self.config['Access']['id'],
+            api_id=int(self.config['Access']['id']),
             api_hash=self.config['Access']['hash'],
             timeout=int(self.config['Client']['timeout']),
             device_model=self.config['Client']['device_model'],
@@ -84,7 +83,7 @@ class RCD:
                       message_id: int,
                       output_filename: str,
                       infer_extension: Optional[bool] = None,
-                      discussion_message_id: Optional[Union[int, str]] = None,
+                      discussion_message_id: Optional[int] = None,
                       ):
         """Read a message in a channel and download the media to output.
 
@@ -99,50 +98,93 @@ class RCD:
 
         try:
             entity = await self.client.get_entity(channel_id)
+            if not isinstance(entity, tg_types.Channel):
+                logger.warning('Cannot get a Channel object from that channel id')
+                return
+            if entity.access_hash is None:
+                logger.warning('Cannot get the access hash for that channel')
+                return
 
-            input_channel = InputChannel(entity.id, entity.access_hash)
+            input_channel = tg_types.InputChannel(entity.id, entity.access_hash)
 
-            messages_request = channels.GetMessagesRequest(input_channel, [message_id])
-            channel_messages: tg_types.messages.Messages = await self.client(messages_request)
+            id = tg_types.InputMessageID(message_id)
+
+            messages_request = channels.GetMessagesRequest(input_channel, [id])
+            channel_messages = await self.client(messages_request)
+            if not isinstance(channel_messages, tg_types.messages.ChannelMessages):
+                logger.warning('Cannot continue because the got type is not a ChannelMessages')
+                return
+
             message = channel_messages.messages[0]
+            if not isinstance(message, tg_types.Message):
+                logger.warning('Cannot continue because the got type is not a Message')
+                return
 
             logger.info('downloading...')
 
             if discussion_message_id:
                 logger.info('finding message from a discussion group')
                 if message.replies and message.replies.comments:
+                    input_peer = await self.client.get_input_entity(message.peer_id)
                     request = functions.messages.GetDiscussionMessageRequest(
-                        peer=message.peer_id,
+                        peer=input_peer,
                         msg_id=message.id,
                     )
-                    result = await self.client(request)
-                    result = cast(tg_types.messages.DiscussionMessage, result)
+                    discussion_message = await self.client(request)
+                    if not isinstance(discussion_message, tg_types.messages.DiscussionMessage):
+                        logger.warning('Cannot get the discussion message')
+                        return
 
-                    discussion_messages = result.messages
-                    discussion_message = discussion_messages[0]
+                    comment_message = discussion_message.messages[0]
+                    if comment_message.peer_id is None:
+                        logger.warning('Found a discussion message peer id as none')
+                        return
+
                     entity = await self.client.get_entity(
-                        discussion_message.peer_id,
+                        comment_message.peer_id,
                     )
-
-                    input_channel = InputChannel(entity.id, entity.access_hash)
-                    messages_request = channels.GetMessagesRequest(input_channel, [discussion_message_id])
-                    channel_messages: tg_types.messages.Messages = await self.client(messages_request)
+                    if not isinstance(entity, tg_types.Channel):
+                        logger.warning('Cannot get a Channel object from the discussion message id')
+                        return
+                    if entity.access_hash is None:
+                        logger.warning('Cannot get the access hash for that channel')
+                        return
+                    
+                    input_channel = tg_types.InputChannel(entity.id, entity.access_hash)
+                    id = tg_types.InputMessageID(discussion_message_id)
+                    messages_request = channels.GetMessagesRequest(input_channel, [id])
+                    channel_messages = await self.client(messages_request)
+                    if not isinstance(channel_messages, tg_types.messages.ChannelMessages):
+                        logger.warning('Cannot continue because the got type is not a ChannelMessages from the discussion channel')
+                        return
                     # overwrite the object message
                     message = channel_messages.messages[0]
+                    if not isinstance(message, tg_types.Message):
+                        logger.warning('Cannot continue because the got type is not a Message  from the discussion channel')
+                        return
                 else:
                     logger.error('message with no comments')
                     return
 
             if self.dry_mode:
                 return output_filename
+            
+            media = message.media
+            if media is None:
+                logger.warning('No media found')
+                return
 
             with open(output_filename, 'wb+') as file:
-                if isinstance(message.media, MessageMediaPaidMedia):
+                if isinstance(media, tg_types.MessageMediaPaidMedia):
                     logger.debug('paid message found')
-                    for message_extended_media in message.media.extended_media:
-                        await self.client.download_file(message_extended_media.media, file)
+                    for message_extended_media in media.extended_media:
+                        if isinstance(message_extended_media, tg_types.MessageExtendedMedia):
+                            await self.client.download_file(message_extended_media.media, file)
+                        else:
+                            logger.warning('Cannot find a message extended media')
+                            return
                 else:
-                    await self.client.download_file(message.media, file)
+                    await self.client.download_file(media, file)
                 logger.info('downloaded to %s', output_filename)
 
                 if infer_extension:
