@@ -38,7 +38,8 @@ def parse_channel_id(channel_id: Union[str, int]):
         Union[str, int]: The channel id.
     """
     if isinstance(channel_id, str):
-        if channel_id.isdigit():
+        stripped = channel_id.lstrip('-')
+        if stripped.isdigit():
             channel_id = int(channel_id)
         else:
             channel_id = channel_id.replace('@', '')
@@ -66,7 +67,7 @@ def parse_message_id(message_id: Union[str, int]):
 
 def parse_ranges(input_string: str):
     regex = re.compile(r'(\d+)(?:\.{2}(\d+))?')
-    ranges: list[tuple[str, str]] = []
+    ranges: list[tuple[int, int]] = []
     for part in input_string.split(','):
         _match = regex.fullmatch(part.strip())
         if _match:

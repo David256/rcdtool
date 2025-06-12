@@ -160,7 +160,6 @@ def main():
         channel_id = args.channel_id or input('Channel ID: ')
         if not channel_id.isdigit():
             logger.warning('channel id is not a digit: %s', channel_id)
-        channel_id_number = int(channel_id)
 
         message_id_input = args.message_id or input('Message ID: ')
         range_message_id = utils.parse_ranges(message_id_input)
@@ -168,7 +167,7 @@ def main():
         for (start, end) in range_message_id:
             logger.debug('range(%s, %s)', start, end)
             for current_message_id in range(start, end + 1):
-                raw_targets.append((channel_id_number, current_message_id))
+                raw_targets.append((channel_id, current_message_id))
         logger.debug('target: %s', raw_targets)
     else:
         links: list[str] = []
