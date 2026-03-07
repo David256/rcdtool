@@ -181,7 +181,15 @@ def main():
         
         for link in links:
             logger.debug('current link: %s', link)
-            channel_id, message_id = link.split('/')[-2:]
+            parts = link.rstrip('/').split('/')
+            # Handle t.me/c/{channel_id}/{topic_id}/{message_id} links
+            if '/c/' in link and len(parts) >= 6:
+                # e.g. https://t.me/c/42340907080/9/851
+                c_index = parts.index('c')
+                channel_id = parts[c_index + 1]
+                message_id = parts[-1]
+            else:
+                channel_id, message_id = parts[-2:]
             logger.debug('current message_id options: %s', message_id)
             message_id_list: list[str] = []
             range_message_id = utils.parse_ranges(message_id)
