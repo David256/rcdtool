@@ -52,6 +52,8 @@ api_id: 32767
 api_hash: ed855a59bbe4a3360dbf7a0538842142
 ```
 
+You might have problems with registering new app, consider following these advices: https://habr.com/ru/articles/923168/
+
 Then rename `config.ini.sample` to `config.ini`, edit it and save wherever you want. If the file is in the same directory as `rcdtool` and its name is exactly "config.ini", then `rcdtool` will load it automatically.
 
 The first time, **rcdtool** will ask you for your phone number, and will start a login process. When this is done, a `.session` file will be created. With this `.session` file, the tool could access to your Telegram account to read messages and download medias. The name of the .session file is set in `config.ini`.
@@ -91,3 +93,30 @@ rcdtool -c config.ini -C qwert -M 34 -O download/base --infer-extension
 ---
 
 If you want to find a media in a comment on a channel post, use `--discussion-message-id` to set the message id of the comment.
+
+## Docker
+
+You can run this app inside a docker container, see Makefile
+
+
+### Makefile shortcuts
+
+Prefer one-liners via `make` (defaults include `--infer-extension` so files get a proper extension):
+
+- Build and prepare:
+
+```
+make build
+make setup
+```
+
+- Start a long‑lived container once, then exec commands inside it:
+
+```
+make up         # builds image, prepares data/, runs container as a daemon
+make shell      # optional: drop into /work inside the container
+```
+
+```bash
+docker exec -it -w /work rcdtoold python3 /app/rcdtool_from_messages.py --infer-extension -f /app/.stuff/messages.md -c /work/config.ini
+```

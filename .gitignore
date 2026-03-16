@@ -161,3 +161,13 @@ cython_debug/
 
 config.ini
 *.session
+
+*.mp4
+*.mp3
+*.jpeg
+*.jpg
+*.png
+*.pdf
+*.mov
+*.webm
+*.mkv

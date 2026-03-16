@@ -1,0 +1,18 @@
+services:
+  rcdtoold:
+    container_name: rcdtoold
+    build:
+      context: .
+    image: rcdtool
+    restart: unless-stopped
+    working_dir: /work
+    user: "${DOCKER_UID}:${DOCKER_GID}"
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      # Helpful for running `python -m rcdtool.main` against mounted source
+      - PYTHONPATH=/app/src
+    volumes:
+      - ./data:/work
+      - .:/app
+    entrypoint: ["sh", "-c", "sleep infinity"]

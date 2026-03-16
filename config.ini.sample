@@ -8,5 +8,14 @@ hash = [your API hash here]
 [Client]
 timeout = 7000
 device_model = scriptgram
-lang_code = es-ES
+lang_code = en-US
 
+; Optional performance tuning
+; concurrent download workers (1..8 is sensible)
+workers = 4
+; chunk size per request in KiB (128, 256, 512, 1024)
+part_size_kb = 512
+; retry behavior for unstable networks
+request_retries = 5
+retry_delay = 2
+connection_retries = 5

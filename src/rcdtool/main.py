@@ -107,6 +107,16 @@ def get_args():
                         action='store_true',
                         default=False,
                         help='Rename the file with the channel and message ids')
+    parser.add_argument('--workers',
+                        dest='workers',
+                        type=int,
+                        default=None,
+                        help='Concurrent download workers (default from config or 4)')
+    parser.add_argument('--part-size-kb',
+                        dest='part_size_kb',
+                        type=int,
+                        default=None,
+                        help='Chunk size in KiB for downloads (default from config or 512)')
     parser.add_argument('--dry-run',
                         dest='dry_mode',
                         action='store_true',
@@ -227,6 +237,8 @@ def main():
             message_id=updated_message_id,
             output_filename=final_output_filename,
             infer_extension=args.infer_extension,
+            workers=args.workers,
+            part_size_kb=args.part_size_kb,
             discussion_message_id=utils.parse_message_id(args.discussion_message_id) if args.discussion_message_id is not None else None,
         )
         coros.append(coro)

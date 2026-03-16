@@ -67,13 +67,24 @@ class RCD:
         Returns:
             TelegramClient: The Telegram client object.
         """
+        # Optional tuning knobs with sensible defaults
+        timeout = int(self.config['Client'].get('timeout', '7000'))
+        device_model = self.config['Client'].get('device_model', 'scriptgram')
+        lang_code = self.config['Client'].get('lang_code', 'en-US')
+        request_retries = int(self.config['Client'].get('request_retries', '5'))
+        retry_delay = int(self.config['Client'].get('retry_delay', '2'))
+        connection_retries = int(self.config['Client'].get('connection_retries', '5'))
+
         client = TelegramClient(
             session=self.config['Access']['session'],
             api_id=int(self.config['Access']['id']),
             api_hash=self.config['Access']['hash'],
-            timeout=int(self.config['Client']['timeout']),
-            device_model=self.config['Client']['device_model'],
-            lang_code=self.config['Client']['lang_code'],
+            timeout=timeout,
+            device_model=device_model,
+            lang_code=lang_code,
+            request_retries=request_retries,
+            retry_delay=retry_delay,
+            connection_retries=connection_retries,
         )
         client.start()
         return client
@@ -83,6 +94,8 @@ class RCD:
                       message_id: int,
                       output_filename: str,
                       infer_extension: Optional[bool] = None,
+                      workers: Optional[int] = None,
+                      part_size_kb: Optional[int] = None,
                       discussion_message_id: Optional[int] = None,
                       ):
         """Read a message in a channel and download the media to output.
@@ -120,7 +133,7 @@ class RCD:
                 logger.warning('Cannot continue because the got type is not a Message')
                 return
 
-            logger.info('downloading...')
+            # defer logging until we finalize the target message
 
             if discussion_message_id:
                 logger.info('finding message from a discussion group')
@@ -168,23 +181,140 @@ class RCD:
 
             if self.dry_mode:
                 return output_filename
-            
+
+            # Try to compute and log media size (when available) before download
+            def _fmt_bytes(n: int | float) -> tuple[float, str]:
+                units = ['B', 'KB', 'MB', 'GB', 'TB']
+                val = float(n)
+                idx = 0
+                while val >= 1024.0 and idx < len(units) - 1:
+                    val /= 1024.0
+                    idx += 1
+                return val, units[idx]
+
+            def _get_media_size(m) -> Optional[int]:
+                try:
+                    if isinstance(m, tg_types.MessageMediaDocument) and isinstance(m.document, tg_types.Document):
+                        return int(getattr(m.document, 'size', 0) or 0) or None
+                    if isinstance(m, tg_types.MessageMediaPhoto) and isinstance(m.photo, tg_types.Photo):
+                        sizes = getattr(m.photo, 'sizes', []) or []
+                        candidates = [getattr(s, 'size', None) for s in sizes]
+                        candidates = [int(x) for x in candidates if isinstance(x, int)]
+                        return max(candidates) if candidates else None
+                    if isinstance(m, tg_types.MessageMediaPaidMedia):
+                        total = 0
+                        found = False
+                        for em in m.extended_media:
+                            if isinstance(em, tg_types.MessageExtendedMedia):
+                                inner = em.media
+                                if isinstance(inner, tg_types.Document):
+                                    total += int(getattr(inner, 'size', 0) or 0)
+                                    found = True
+                                elif isinstance(inner, tg_types.Photo):
+                                    sizes = getattr(inner, 'sizes', []) or []
+                                    candidates = [getattr(s, 'size', None) for s in sizes]
+                                    candidates = [int(x) for x in candidates if isinstance(x, int)]
+                                    if candidates:
+                                        total += max(candidates)
+                                        found = True
+                        return total if found else None
+                except Exception:
+                    return None
+                return None
+
+            pre_media = message.media
+            pre_size = _get_media_size(pre_media)
+            if pre_size:
+                s_val, s_unit = _fmt_bytes(pre_size)
+                logger.info('size: %.2f %s', s_val, s_unit)
+            logger.info('downloading...')
+
             media = message.media
             if media is None:
                 logger.warning('No media found')
                 return
 
-            with open(output_filename, 'wb+') as file:
-                if isinstance(media, tg_types.MessageMediaPaidMedia):
-                    logger.debug('paid message found')
-                    for message_extended_media in media.extended_media:
-                        if isinstance(message_extended_media, tg_types.MessageExtendedMedia):
-                            await self.client.download_file(message_extended_media.media, file)
-                        else:
-                            logger.warning('Cannot find a message extended media')
-                            return
-                else:
-                    await self.client.download_file(media, file)
+            # Resolve defaults from config if not provided
+            cfg_workers = int(self.config['Client'].get('workers', '4'))
+            cfg_part_kb = int(self.config['Client'].get('part_size_kb', '512'))
+
+            # Throttle logs: progress callback every ~1s
+            import time
+            last_t = 0.0
+            last_b = 0
+
+            def _fmt_bytes(n: int | float) -> tuple[float, str]:
+                units = ['B', 'KB', 'MB', 'GB', 'TB']
+                val = float(n)
+                idx = 0
+                while val >= 1024.0 and idx < len(units) - 1:
+                    val /= 1024.0
+                    idx += 1
+                return val, units[idx]
+
+            def _progress(bytes_downloaded: int, total: Optional[int]):
+                nonlocal last_t, last_b
+                now = time.time()
+                if last_t == 0.0:
+                    last_t, last_b = now, bytes_downloaded
+                    return
+                if now - last_t >= 1.0:
+                    delta_b = bytes_downloaded - last_b
+                    speed = delta_b / (now - last_t)
+                    spd_val, spd_unit = _fmt_bytes(speed)
+                    cur_val, cur_unit = _fmt_bytes(bytes_downloaded)
+                    if total:
+                        tot_val, tot_unit = _fmt_bytes(total)
+                        percent = bytes_downloaded * 100 / total
+                        logger.info('progress: %.2f %s/%.2f %s (%.1f%%) at %.2f %s',
+                                    cur_val, cur_unit, tot_val, tot_unit, percent, spd_val, spd_unit)
+                    else:
+                        logger.info('progress: %.2f %s at %.2f %s', cur_val, cur_unit, spd_val, spd_unit)
+                    last_t, last_b = now, bytes_downloaded
+
+            # Use low-level download_file for broad Telethon compatibility and control
+            import inspect
+
+            async def _dl_file(input_media, out_path: str):
+                sig = None
+                try:
+                    sig = inspect.signature(self.client.download_file)
+                except Exception:
+                    sig = None
+
+                kwargs = {
+                    'file': out_path,
+                    'part_size_kb': part_size_kb or cfg_part_kb,
+                    'progress_callback': _progress,
+                }
+                # Add workers only if supported in this Telethon version
+                if sig and 'workers' in sig.parameters:
+                    if workers or cfg_workers:
+                        kwargs['workers'] = workers or cfg_workers
+
+                try:
+                    await self.client.download_file(input_media, **kwargs)
+                except TypeError:
+                    # Fallback: remove optional kwargs progressively
+                    kwargs.pop('progress_callback', None)
+                    try:
+                        await self.client.download_file(input_media, **kwargs)
+                    except TypeError:
+                        kwargs.pop('part_size_kb', None)
+                        kwargs.pop('workers', None)
+                        await self.client.download_file(input_media, **kwargs)
+
+            if isinstance(media, tg_types.MessageMediaPaidMedia):
+                logger.debug('paid message found')
+                for message_extended_media in media.extended_media:
+                    if isinstance(message_extended_media, tg_types.MessageExtendedMedia):
+                        await _dl_file(message_extended_media.media, output_filename)
+                    else:
+                        logger.warning('Cannot find a message extended media')
+                        return
+                logger.info('downloaded to %s', output_filename)
+            else:
+                await _dl_file(media, output_filename)
                 logger.info('downloaded to %s', output_filename)
 
                 if infer_extension:
