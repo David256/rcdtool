@@ -187,15 +187,15 @@ class RCD:
                     await self.client.download_file(media, file)
                 logger.info('downloaded to %s', output_filename)
 
-                if infer_extension:
-                    result = filetype.guess(output_filename)
-                    if result:
-                        ext = result.extension
-                        new_output_filename = f'{output_filename}.{ext}'
-                        os.rename(output_filename, new_output_filename)
-                        logger.debug('rename to %s', new_output_filename)
-                        return new_output_filename
-                return output_filename
+            if infer_extension:
+                result = filetype.guess(output_filename)
+                if result:
+                    ext = result.extension
+                    new_output_filename = f'{output_filename}.{ext}'
+                    os.rename(output_filename, new_output_filename)
+                    logger.debug('rename to %s', new_output_filename)
+                    return new_output_filename
+            return output_filename
         except Exception as err:
             logger.error('Error: channel_id=%s, message_id=%s, output_filename=%s, infer_extension=%s',
                          channel_id,
