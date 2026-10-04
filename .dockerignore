@@ -1,0 +1,14 @@
+# Ignore VCS and editor cruft
+.git
+.gitignore
+
+# Python build/test caches
+__pycache__
+*.pyc
+.pytest_cache
+build
+
+# Local configs and sessions (mounted at runtime instead)
+config.ini
+*.session
+
